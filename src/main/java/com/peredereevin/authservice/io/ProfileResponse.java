@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ProfileResponse extends User {
+public class ProfileResponse {
     private String userId;
     private String name;
     private String email;
