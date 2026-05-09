@@ -5,7 +5,9 @@ import com.peredereevin.authservice.io.ProfileRequest;
 import com.peredereevin.authservice.io.ProfileResponse;
 import com.peredereevin.authservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
@@ -18,8 +20,12 @@ public class ProfileServiceImplementation implements ProfileService{
     @Override
     public ProfileResponse createProfile(ProfileRequest request) {
         User newProfile = convertToUser(request);
-        newProfile = userRepository.save(newProfile);
-        return convertToUser(newProfile);
+        if (!userRepository.existsByEmail(request.getEmail())){
+            newProfile = userRepository.save(newProfile);
+            return convertToUser(newProfile);
+        }
+
+        throw new ResponseStatusException(HttpStatus.CONFLICT, "Данный email уже существует");
     }
 
     private ProfileResponse convertToUser(User newProfile){
