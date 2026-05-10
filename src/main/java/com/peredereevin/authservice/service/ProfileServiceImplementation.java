@@ -7,6 +7,7 @@ import com.peredereevin.authservice.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -25,13 +26,20 @@ public class ProfileServiceImplementation implements ProfileService{
         User newProfile = convertToUser(request);
         if (!userRepository.existsByEmail(request.getEmail())){
             newProfile = userRepository.save(newProfile);
-            return convertToUser(newProfile);
+            return convertToProfileResponse(newProfile);
         }
 
         throw new ResponseStatusException(HttpStatus.CONFLICT, "Данный email уже существует");
     }
 
-    private ProfileResponse convertToUser(User newProfile){
+    @Override
+    public ProfileResponse getProfile(String email) {
+        User existingUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Пользователь с таким email не найден: " + email));
+        return convertToProfileResponse(existingUser);
+    }
+
+    private ProfileResponse convertToProfileResponse(User newProfile){
         return ProfileResponse.builder()
                 .email(newProfile.getEmail())
                 .userId(newProfile.getUserId())

@@ -5,4 +5,6 @@ import com.peredereevin.authservice.io.ProfileResponse;
 
 public interface ProfileService {
     ProfileResponse createProfile(ProfileRequest request);
+
+    ProfileResponse getProfile(String email);
 }
