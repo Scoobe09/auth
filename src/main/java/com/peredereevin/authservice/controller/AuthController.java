@@ -55,6 +55,7 @@ public class AuthController {
             error.put("message","Аккаунт отключен!");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         } catch (Exception exception) {
+            exception.printStackTrace();
             Map<String, Object> error = new HashMap<>();
             error.put("error", true);
             error.put("message", "Ошибка аутентификации!");

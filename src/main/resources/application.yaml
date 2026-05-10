@@ -9,8 +9,7 @@ spring:
     hibernate:
       ddl-auto: update
 jwt:
-  secret:
-    key: myfirsttoken
+  secret: 6DVHC0u/1J8tBJBdw33/lDHl1iN/ORCu4aLkEZs8180=
 server:
   servlet:
     context-path: /api/v1
