@@ -112,11 +112,11 @@ public class ProfileServiceImplementation implements ProfileService{
         User existingUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
 
-        if (existingUser.getVerifyOtp() == null || existingUser.getVerifyOtp().equals(otp)) {
+        if (existingUser.getVerifyOtp() == null || !existingUser.getVerifyOtp().equals(otp)) {
             throw new RuntimeException("Неверный код");
         }
 
-        if (existingUser.getResetOtpExpireAt() < System.currentTimeMillis()) {
+        if (existingUser.getVerifyOtpExpireAt() < System.currentTimeMillis()) {
             throw new RuntimeException("Одноразовый код истёк");
         }
 
