@@ -27,7 +27,7 @@ public class EmailService {
         message.setFrom(fromEmail);
         message.setTo(toEmail);
         message.setSubject("Сброс пароля");
-        message.setText("Здравствуйте, пользоваель! Вот ваш одноразовый код для сброса пароля: " + otp + "\n\n С уважением, команда от МГТУ им. Н.Э. Баумана");
+        message.setText("Здравствуйте, пользоваель! \n\nВот ваш одноразовый код для сброса пароля: " + otp + "\n\n С уважением, команда от МГТУ им. Н.Э. Баумана");
         mailSender.send(message);
     }
 }

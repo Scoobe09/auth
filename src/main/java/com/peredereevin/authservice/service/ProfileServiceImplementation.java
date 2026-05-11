@@ -46,7 +46,7 @@ public class ProfileServiceImplementation implements ProfileService{
         User existingEntity = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
 
-        String otp = String.valueOf(ThreadLocalRandom.current().nextInt(100000));
+        String otp = String.valueOf(ThreadLocalRandom.current().nextInt(1000000));
 
         long expiryTime = System.currentTimeMillis() + (15 * 60 * 1000);
 
