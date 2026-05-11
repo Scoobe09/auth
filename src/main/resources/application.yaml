@@ -8,6 +8,18 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+  mail:
+    host: smtp.yandex.ru
+    port: 587
+    username: peredereev-in@yandex.ru
+    password: znagrkldpfnhgvlw
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
 jwt:
   secret: LemwodjSSNLVm+41hwNXuzZHjFOfB/FkKaXanvISG6E=
 
