@@ -21,4 +21,13 @@ public class EmailService {
         message.setText("Здравствуйте, " + name + "! \n\nСпасибо что выбрали нас! \n\n С уважением, команда от МГТУ им. Н.Э. Баумана");
         mailSender.send(message);
     }
+
+    public void sendResetOtpEmail(String toEmail, String otp) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(toEmail);
+        message.setSubject("Сброс пароля");
+        message.setText("Здравствуйте, пользоваель! Вот ваш одноразовый код для сброса пароля: " + otp + "\n\n С уважением, команда от МГТУ им. Н.Э. Баумана");
+        mailSender.send(message);
+    }
 }

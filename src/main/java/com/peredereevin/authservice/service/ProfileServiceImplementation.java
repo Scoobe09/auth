@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +21,7 @@ public class ProfileServiceImplementation implements ProfileService{
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final EmailService emailService;
 
     @Override
     public ProfileResponse createProfile(ProfileRequest request) {
@@ -37,6 +39,25 @@ public class ProfileServiceImplementation implements ProfileService{
         User existingUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь с таким email не найден: " + email));
         return convertToProfileResponse(existingUser);
+    }
+
+    @Override
+    public void sendResetOtp(String email) {
+        User existingEntity = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
+
+        String otp = String.valueOf(ThreadLocalRandom.current().nextInt(100000));
+
+        long expiryTime = System.currentTimeMillis() + (15 * 60 * 1000);
+
+        existingEntity.setResetOtp(otp);
+        existingEntity.setResetOtpExpireAt(expiryTime);
+
+        try {
+            emailService.sendResetOtpEmail(existingEntity.getEmail(), otp);
+        } catch (Exception exception) {
+            throw new RuntimeException("Не получилось отправить сообщение");
+        }
     }
 
     private ProfileResponse convertToProfileResponse(User newProfile){
