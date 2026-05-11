@@ -104,7 +104,7 @@ public class ProfileServiceImplementation implements ProfileService{
 
         try {
             emailService.sendOtpEmail(email, otp);
-        } catch (MessagingException exception) {
+        } catch (Exception exception) {
             throw new RuntimeException("Не получилось отправить сообщение");
         }
     }
