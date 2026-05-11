@@ -30,4 +30,13 @@ public class EmailService {
         message.setText("Здравствуйте, пользоваель! \n\nВот ваш одноразовый код для сброса пароля: " + otp + "\n\n С уважением, команда от МГТУ им. Н.Э. Баумана");
         mailSender.send(message);
     }
+
+    public void sendOtpEmail(String toEmail, String otp) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
+        message.setTo(toEmail);
+        message.setSubject("Верификация профиля");
+        message.setText("Здравствуйте, пользоваель! \n\nВот ваш одноразовый код для верификации профиля: " + otp + "\n\n С уважением, команда от МГТУ им. Н.Э. Баумана");
+        mailSender.send(message);
+    }
 }

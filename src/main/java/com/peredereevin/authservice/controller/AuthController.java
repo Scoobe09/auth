@@ -93,4 +93,27 @@ public class AuthController {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
         }
     }
+
+    @PostMapping("/send-otp")
+    public void sendVerifyOtp(@CurrentSecurityContext(expression = "authentication?.name") String email) {
+        try {
+            profileService.sendOtp(email);
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
+        }
+    }
+
+    @PostMapping("/verify-otp")
+    public void verifyEmail(@RequestBody Map<String, Object> request,
+                            @CurrentSecurityContext(expression = "authentication?.name") String email) {
+        if (request.get("otp") == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Отсутствуют детали");
+        }
+
+        try {
+            profileService.verifyOtp(email, request.get("otp").toString());
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
+        }
+    }
 }

@@ -46,7 +46,7 @@ public class ProfileServiceImplementation implements ProfileService{
         User existingEntity = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
 
-        String otp = String.valueOf(ThreadLocalRandom.current().nextInt(1000000));
+        String otp = String.valueOf(ThreadLocalRandom.current().nextInt(100000,1000000));
 
         long expiryTime = System.currentTimeMillis() + (15 * 60 * 1000);
 
@@ -80,6 +80,59 @@ public class ProfileServiceImplementation implements ProfileService{
         existingUser.setResetOtpExpireAt(0L);
 
         userRepository.save(existingUser);
+    }
+
+    @Override
+    public void sendOtp(String email) {
+        User existingUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
+
+        if (existingUser.getIsAccountVerified() != null && existingUser.getIsAccountVerified()) {
+            return;
+        }
+
+        String otp = String.valueOf(ThreadLocalRandom.current().nextInt(100000,1000000));
+
+        long expiryTime = System.currentTimeMillis() + (24 * 60 * 60 * 1000);
+
+        existingUser.setVerifyOtp(otp);
+        existingUser.setVerifyOtpExpireAt(expiryTime);
+
+        userRepository.save(existingUser);
+
+        try {
+            emailService.sendOtpEmail(existingUser.getEmail(), otp);
+        } catch (Exception exception) {
+            throw new RuntimeException("Не получилось отправить сообщение");
+        }
+    }
+
+    @Override
+    public void verifyOtp(String email, String otp) {
+        User existingUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
+
+        if (existingUser.getVerifyOtp() == null || existingUser.getVerifyOtp().equals(otp)) {
+            throw new RuntimeException("Неверный код");
+        }
+
+        if (existingUser.getResetOtpExpireAt() < System.currentTimeMillis()) {
+            throw new RuntimeException("Одноразовый код истёк");
+        }
+
+        existingUser.setIsAccountVerified(true);
+        existingUser.setVerifyOtp(null);
+        existingUser.setVerifyOtpExpireAt(0L);
+
+        userRepository.save(existingUser);
+    }
+
+    @Override
+    public String getLoggedInUserId(String email) {
+        User existingUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
+
+        return existingUser.getUserId();
     }
 
     private ProfileResponse convertToProfileResponse(User newProfile){
