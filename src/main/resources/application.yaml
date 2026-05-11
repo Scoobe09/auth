@@ -17,6 +17,8 @@ spring:
       mail:
         smtp:
           auth: true
+          ssl:
+            trust: smtp.yandex.ru
           starttls:
             enable: true
 
@@ -26,3 +28,7 @@ jwt:
 server:
   servlet:
     context-path: /api/v1
+
+logging:
+  level:
+    org.springframework.security: DEBUG
