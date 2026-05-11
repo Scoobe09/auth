@@ -4,6 +4,7 @@ import com.peredereevin.authservice.entity.User;
 import com.peredereevin.authservice.io.ProfileRequest;
 import com.peredereevin.authservice.io.ProfileResponse;
 import com.peredereevin.authservice.repository.UserRepository;
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 
@@ -12,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -91,7 +93,7 @@ public class ProfileServiceImplementation implements ProfileService{
             return;
         }
 
-        String otp = String.valueOf(ThreadLocalRandom.current().nextInt(100000,1000000));
+        String otp = String.format("%06d", new Random().nextInt(999999));
 
         long expiryTime = System.currentTimeMillis() + (24 * 60 * 60 * 1000);
 
@@ -101,8 +103,8 @@ public class ProfileServiceImplementation implements ProfileService{
         userRepository.save(existingUser);
 
         try {
-            emailService.sendOtpEmail(existingUser.getEmail(), otp);
-        } catch (Exception exception) {
+            emailService.sendOtpEmail(email, otp);
+        } catch (MessagingException exception) {
             throw new RuntimeException("Не получилось отправить сообщение");
         }
     }
