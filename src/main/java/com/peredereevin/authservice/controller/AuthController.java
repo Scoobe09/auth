@@ -2,9 +2,11 @@ package com.peredereevin.authservice.controller;
 
 import com.peredereevin.authservice.io.AuthRequest;
 import com.peredereevin.authservice.io.AuthResponse;
+import com.peredereevin.authservice.io.ResetPasswordRequest;
 import com.peredereevin.authservice.service.AppUserDetailsService;
 import com.peredereevin.authservice.service.ProfileService;
 import com.peredereevin.authservice.util.JwtUtil;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -78,6 +80,15 @@ public class AuthController {
     public void sendResetOtp(@RequestParam String email) {
         try {
             profileService.sendResetOtp(email);
+        } catch (Exception exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
+        }
+    }
+
+    @PostMapping("/reset")
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        try {
+            profileService.resetPassword(request.getEmail(), request.getOtp(), request.getNewPassword());
         } catch (Exception exception) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
         }

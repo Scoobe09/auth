@@ -53,11 +53,33 @@ public class ProfileServiceImplementation implements ProfileService{
         existingEntity.setResetOtp(otp);
         existingEntity.setResetOtpExpireAt(expiryTime);
 
+        userRepository.save(existingEntity);
+
         try {
             emailService.sendResetOtpEmail(existingEntity.getEmail(), otp);
         } catch (Exception exception) {
             throw new RuntimeException("Не получилось отправить сообщение");
         }
+    }
+
+    @Override
+    public void resetPassword(String email, String otp, String newPassword) {
+        User existingUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
+
+        if (existingUser.getResetOtp() == null || !existingUser.getResetOtp().equals(otp)) {
+            throw new RuntimeException("Неверный одноразовый код");
+        }
+
+        if (existingUser.getResetOtpExpireAt() < System.currentTimeMillis()) {
+            throw new RuntimeException("Одноразовый код истёк");
+        }
+
+        existingUser.setPassword(newPassword);
+        existingUser.setResetOtp(null);
+        existingUser.setResetOtpExpireAt(0L);
+
+        userRepository.save(existingUser);
     }
 
     private ProfileResponse convertToProfileResponse(User newProfile){
