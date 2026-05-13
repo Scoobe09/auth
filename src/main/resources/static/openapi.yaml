@@ -1,0 +1,402 @@
+openapi: 3.0.3
+info:
+  title: Auth Service API
+  version: 1.0.0
+  description: |
+    Сервис аутентификации и управления пользователями МГТУ им. Н.Э. Баумана.
+    
+    ### Возможности
+    - Регистрация и вход в систему
+    - Верификация email по OTP-коду
+    - Сброс пароля
+    - Защищённый профиль пользователя
+    
+    ### Безопасность
+    - Публичные эндпоинты: `/login`, `/register`, `/send-reset-otp`, `/reset`
+    - Защищённые эндпоинты: требуют JWT в http-only cookie или заголовке `Authorization: Bearer <токен>`
+    - Токен действителен 10 часов
+  contact:
+    name: Команда МГТУ им. Н.Э. Баумана
+    email: support@bmstu.ru
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Локальный сервер разработки
+
+tags:
+  - name: auth
+    description: Аутентификация и авторизация
+  - name: profile
+    description: Профиль пользователя
+  - name: otp
+    description: Одноразовые коды верификации и сброса пароля
+
+paths:
+  /login:
+    post:
+      tags: [auth]
+      summary: Вход в систему
+      description: |
+        Аутентифицирует пользователя по email и паролю.
+        Возвращает JWT-токен в теле ответа и в http-only cookie `jwt`.
+        Токен действителен 10 часов.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+            example:
+              email: "user@example.com"
+              password: "password123"
+      responses:
+        '200':
+          description: Успешный вход
+          headers:
+            Set-Cookie:
+              description: JWT в http-only cookie
+              schema:
+                type: string
+                example: "jwt=eyJhbGciOiJIUzI1NiJ9...; HttpOnly; Path=/; Max-Age=86400; SameSite=Strict"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Неверный логин или пароль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: true
+                message: "Логин или пароль введены неправильно!"
+        '401':
+          description: Аккаунт отключён или ошибка аутентификации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /is-authenticated:
+    get:
+      tags: [auth]
+      summary: Проверить статус аутентификации
+      description: Возвращает `true`, если пользователь аутентифицирован.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Результат проверки
+          content:
+            application/json:
+              schema:
+                type: boolean
+                example: true
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                message: "Пользователь не авторизован"
+
+  /register:
+    post:
+      tags: [profile]
+      summary: Регистрация нового пользователя
+      description: |
+        Создаёт нового пользователя с хешированием пароля (BCrypt).
+        После успешной регистрации отправляет приветственное письмо на указанный email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileRequest'
+            example:
+              name: "Иван Иванов"
+              email: "ivan@example.com"
+              password: "securePass123"
+      responses:
+        '201':
+          description: Пользователь успешно создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '400':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '409':
+          description: Email уже зарегистрирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: true
+                message: "Данный email уже существует"
+
+  /profile:
+    get:
+      tags: [profile]
+      summary: Получить профиль текущего пользователя
+      description: Возвращает профиль аутентифицированного пользователя.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Профиль пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /send-otp:
+    post:
+      tags: [otp]
+      summary: Отправить OTP для верификации email
+      description: |
+        Отправляет одноразовый 6-значный код на email текущего пользователя.
+        Код действителен 10 минут.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OTP-код отправлен
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Ошибка отправки письма
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /verify-otp:
+    post:
+      tags: [otp]
+      summary: Подтвердить email по OTP-коду
+      description: |
+        Проверяет OTP-код и подтверждает email пользователя.
+        После успешной верификации поле `isAccountVerified` становится `true`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [otp]
+              properties:
+                otp:
+                  type: string
+                  description: 6-значный код из письма
+                  example: "123456"
+      responses:
+        '200':
+          description: Почта успешно подтверждена
+        '400':
+          description: Неверный или истёкший код
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: true
+                message: "Неверный код"
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /send-reset-otp:
+    post:
+      tags: [otp]
+      summary: Отправить OTP для сброса пароля
+      description: |
+        Отправляет одноразовый код для сброса пароля на указанный email.
+        Код действителен 10 минут.
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+          example: "user@example.com"
+      responses:
+        '200':
+          description: Код отправлен
+        '500':
+          description: Ошибка отправки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reset:
+    post:
+      tags: [otp]
+      summary: Сбросить пароль
+      description: Устанавливает новый пароль по OTP-коду из письма.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+            example:
+              email: "user@example.com"
+              otp: "123456"
+              newPassword: "newSecurePass456"
+      responses:
+        '200':
+          description: Пароль успешно изменён
+        '400':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Ошибка сброса пароля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT-токен, полученный при входе в систему.
+        Передаётся либо в заголовке `Authorization: Bearer <токен>`,
+        либо автоматически через http-only cookie `jwt`.
+
+  schemas:
+    AuthRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          description: Пароль (открытый текст)
+          example: "password123"
+
+    AuthResponse:
+      type: object
+      description: Ответ при успешном входе
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+        token:
+          type: string
+          description: JWT-токен
+
+    ProfileRequest:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          description: Имя пользователя
+          minLength: 1
+          example: "Иван Иванов"
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+        password:
+          type: string
+          format: password
+          minLength: 6
+          description: Пароль (минимум 6 символов)
+
+    ProfileResponse:
+      type: object
+      description: Профиль пользователя
+      properties:
+        userId:
+          type: string
+          description: Уникальный идентификатор пользователя (UUID)
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: Имя пользователя
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+        isAccountVerified:
+          type: boolean
+          description: Подтверждён ли аккаунт
+
+    ResetPasswordRequest:
+      type: object
+      required: [email, otp, newPassword]
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email пользователя
+        otp:
+          type: string
+          description: Одноразовый код из письма
+        newPassword:
+          type: string
+          format: password
+          minLength: 6
+          description: Новый пароль (минимум 6 символов)
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: boolean
+          description: Флаг ошибки
+        message:
+          type: string
+          description: Сообщение об ошибке
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Сообщение об ошибке валидации поля name
+        email:
+          type: string
+          description: Сообщение об ошибке валидации поля email
+        password:
+          type: string
+          description: Сообщение об ошибке валидации поля password

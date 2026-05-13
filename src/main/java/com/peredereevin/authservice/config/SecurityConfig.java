@@ -38,7 +38,7 @@ public class SecurityConfig {
         http.cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/logout", "/register", "/send-reset-otp", "/reset", "/verify-otp", "/error")
+                        .requestMatchers("/login", "/logout", "/register", "/send-reset-otp", "/reset", "/verify-otp", "/error", "/openapi.yaml")
                         .permitAll().anyRequest().authenticated()
                 ).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .logout(AbstractHttpConfigurer::disable)
