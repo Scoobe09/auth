@@ -25,8 +25,8 @@ REST-сервис для аутентификации и управления п
 | Язык                | Java 25                                      |
 | Фреймворк           | Spring Boot 4.0.6, Spring Security 7.0.5     |
 | Работа с данными     | Spring Data JPA, Hibernate, PostgreSQL       |
-| Безопасность         | JWT (jjwt 0.12.6), BCrypt, http?only cookies |
-| Почта               | Spring Mail + Thymeleaf (HTML?письма)        |
+| Безопасность         | JWT (jjwt 0.12.6), BCrypt, http-only cookies |
+| Почта               | Spring Mail + Thymeleaf (HTML-письма)        |
 | Документация        | OpenAPI 3.0 (YAML), Postman коллекция        |
 | Контейнеризация     | Docker, Docker Compose                       |
 
@@ -70,7 +70,7 @@ mvn spring-boot:run
 
 Приложение поднимется на `http://localhost:8080/api/v1`.
 
-## ?? Запуск через Docker Compose
+## Запуск через Docker Compose
 
 ```bash
 docker-compose up --build -d
@@ -129,7 +129,7 @@ src/
 
 - **Пароли** хранятся в виде BCrypt-хешей.
 - **JWT** генерируется после успешного входа, срок жизни — 10 часов.
-- JWT передаётся в **http?only cookie** и также в теле ответа (для гибкости фронтенда).
+- JWT передаётся в **http-only cookie** и также в теле ответа (для гибкости фронтенда).
 - Фильтр `JwtRequestFilter` извлекает токен из заголовка `Authorization` или cookie, загружает пользователя и кладёт аутентификацию в `SecurityContext`.
 - Публичные эндпоинты (`/login`, `/register`, `/send?reset?otp`, `/reset`) исключены из проверки токена.
 - CORS настроен для адреса `http://localhost:3000` (можно изменить под свой фронтенд).
