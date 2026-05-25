@@ -1,6 +1,7 @@
 package com.peredereevin.authservice.util;
 
 import com.peredereevin.authservice.config.JwtProperties;
+import com.peredereevin.authservice.entity.Role;
 import com.peredereevin.authservice.security.KeyPairProvider;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -80,5 +81,11 @@ public class JwtUtil {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    public String generateToken(String email, Role role) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", role.name());
+        return generateToken(claims, email);
     }
 }

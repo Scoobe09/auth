@@ -1,5 +1,6 @@
 package com.peredereevin.authservice.controller;
 
+import com.peredereevin.authservice.entity.Role;
 import com.peredereevin.authservice.io.AuthRequest;
 import com.peredereevin.authservice.io.AuthResponse;
 import com.peredereevin.authservice.io.ResetPasswordRequest;
@@ -17,6 +18,7 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.CurrentSecurityContext;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -43,8 +45,13 @@ public class AuthController {
             final UserDetails userDetails = appUserDetailsService.loadUserByUsername(request.getEmail());
             final String email = userDetails.getUsername();
 
-            // Access token
-            final String accessToken = jwtUtil.generateToken(email);
+            String role = userDetails.getAuthorities().stream()
+                    .map(GrantedAuthority::getAuthority)
+                    .findFirst().orElse("ROLE_USER");
+            if (role.startsWith("ROLE_")) role = role.substring(5);
+            final String accessToken = jwtUtil.generateToken(email, Role.valueOf(role));
+
+
             // Refresh token (сохраняется в БД)
             final String refreshToken = refreshTokenService.createRefreshToken(email);
 

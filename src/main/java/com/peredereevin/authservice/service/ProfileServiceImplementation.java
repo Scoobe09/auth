@@ -1,5 +1,6 @@
 package com.peredereevin.authservice.service;
 
+import com.peredereevin.authservice.entity.Role;
 import com.peredereevin.authservice.entity.User;
 import com.peredereevin.authservice.io.ProfileRequest;
 import com.peredereevin.authservice.io.ProfileResponse;
@@ -153,6 +154,7 @@ public class ProfileServiceImplementation implements ProfileService{
                     .name(request.getName())
                     .password(passwordEncoder.encode(request.getPassword()))
                     .isAccountVerified(false)
+                    .role(Role.USER)
                     .resetOtpExpireAt(0L)
                     .verifyOtp(null)
                     .verifyOtpExpireAt(0L)
