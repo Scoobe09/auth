@@ -172,7 +172,7 @@ public class AuthController {
     @PostMapping("/verify-otp")
     public void verifyEmail(@RequestBody Map<String, Object> request,
                             @CurrentSecurityContext(expression = "authentication?.name") String email) {
-        if (request.get("otp").toString() == null) {
+        if (request.get("otp").toString() == null || request.get("otp").toString().isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Отсутствуют детали");
         }
 

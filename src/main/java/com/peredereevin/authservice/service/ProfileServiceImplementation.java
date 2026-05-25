@@ -78,7 +78,7 @@ public class ProfileServiceImplementation implements ProfileService{
             throw new RuntimeException("Одноразовый код истёк");
         }
 
-        existingUser.setPassword(newPassword);
+        existingUser.setPassword(passwordEncoder.encode(newPassword));
         existingUser.setResetOtp(null);
         existingUser.setResetOtpExpireAt(0L);
 
