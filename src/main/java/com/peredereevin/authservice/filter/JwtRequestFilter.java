@@ -25,10 +25,14 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private final AppUserDetailsService appUserDetailsService;
     private final JwtUtil jwtUtil;
 
-    private static final List<String> PUBLIC_URLS = List.of("/login", "/register", "/send-reset-otp", "/reset-password", "/logout", "/swagger-ui/index.html");
+    private static final List<String> PUBLIC_URLS = List.of(
+            "/login", "/register", "/send-reset-otp", "/reset-password", "/logout", "/refresh", "/swagger-ui/index.html"
+    );
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
         String path = request.getServletPath();
 
         if (PUBLIC_URLS.contains(path)) {
@@ -39,15 +43,17 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         String jwt = null;
         String email = null;
 
+        // Извлечение токена из заголовка Authorization
         final String authorizationHeader = request.getHeader("Authorization");
-        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")){
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
         }
 
+        // Если токена нет в заголовке, ищем в cookies
         if (jwt == null) {
             Cookie[] cookies = request.getCookies();
             if (cookies != null) {
-                for (Cookie cookie: cookies) {
+                for (Cookie cookie : cookies) {
                     if ("jwt".equals(cookie.getName())) {
                         jwt = cookie.getValue();
                         break;
@@ -56,11 +62,13 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             }
         }
 
+        // Если токен найден, извлекаем email и валидируем
         if (jwt != null) {
-            email = jwtUtil.extractEmail(jwt);
+            email = jwtUtil.extractUsername(jwt);   // было extractEmail
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 UserDetails userDetails = appUserDetailsService.loadUserByUsername(email);
-                if (jwtUtil.validateToken(jwt, userDetails)) {
+                // Новая сигнатура: isTokenValid(token, email)
+                if (jwtUtil.isTokenValid(jwt, email)) {
                     UsernamePasswordAuthenticationToken authenticationToken =
                             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

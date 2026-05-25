@@ -23,7 +23,12 @@ spring:
             enable: true
 
 jwt:
-  secret: LemwodjSSNLVm+41hwNXuzZHjFOfB/FkKaXanvISG6E=
+  access-token-expiration: 900000   # 15 минут
+  refresh-token-expiration: 604800000 # 7 дней (пока не используется, но готово)
+  rsa:
+    private-key-path: ${JWT_PRIVATE_KEY_PATH:keys/private.pem}
+    public-key-path: ${JWT_PUBLIC_KEY_PATH:keys/public.pem}
+
 
 server:
   servlet:
@@ -33,3 +38,5 @@ logging:
   level:
     org.springframework.security: DEBUG
     com.sun.mail.smtp: DEBUG
+
+kind: Application

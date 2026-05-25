@@ -1,16 +1,15 @@
 package com.peredereevin.authservice.util;
 
+import com.peredereevin.authservice.config.JwtProperties;
+import com.peredereevin.authservice.security.KeyPairProvider;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,32 +17,55 @@ import java.util.function.Function;
 
 @Component
 public class JwtUtil {
-    // TODO: @Value("${jwt.secret:#{null}")
-    private String secret = "LemwodjSSNLVm+41hwNXuzZHjFOfB/FkKaXanvISG6E=";
-    byte[] keyBytes = Decoders.BASE64.decode(secret);
-    public SecretKey SECRET_KEY = Keys.hmacShaKeyFor(keyBytes);
+    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
+    private final KeyPairProvider keyPairProvider;
+    private final long accessTokenExpirationMs;
 
-    public String generateToken(UserDetails userDetails) {
-        Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, userDetails.getUsername());
+    public JwtUtil(KeyPairProvider keyPairProvider, JwtProperties jwtProperties) {
+        this.keyPairProvider = keyPairProvider;
+        this.accessTokenExpirationMs = jwtProperties.getAccessTokenExpiration();
     }
 
-    private String createToken(Map<String, Object> claims, String email) {
+    // ---------- Генерация токена (публичный метод, сохраняем старую сигнатуру) ----------
+    public String generateToken(String email) {
+        return generateToken(new HashMap<>(), email);
+    }
+
+    public String generateToken(Map<String, Object> extraClaims, String email) {
+        log.debug("Generating JWT for subject: {}", email);
+        RSAPrivateKey privateKey = keyPairProvider.getPrivateKey();
         return Jwts.builder()
-                .claims(claims)
+                .claims(extraClaims)
                 .subject(email)
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10))
-                .signWith(SignatureAlgorithm.HS256, SECRET_KEY)
+                .expiration(new Date(System.currentTimeMillis() + accessTokenExpirationMs))
+                .signWith(privateKey)               // RS256
                 .compact();
     }
 
-    private Claims extractAllClaims(String token) {
-        Jws<Claims> jwt = Jwts.parser()
-                .verifyWith(SECRET_KEY)
-                .build()
-                .parseSignedClaims(token);
-        return jwt.getPayload();
+    // ---------- Валидация ----------
+    public boolean isTokenValid(String token, String userEmail) {
+        try {
+            final String username = extractUsername(token);
+            return (username.equals(userEmail)) && !isTokenExpired(token);
+        } catch (Exception e) {
+            log.warn("Token validation failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    // ---------- Извлечение данных ----------
+    public String extractUsername(String token) {
+        return extractClaim(token, Claims::getSubject);
+    }
+
+    // ---------- Вспомогательные методы ----------
+    private boolean isTokenExpired(String token) {
+        return extractExpiration(token).before(new Date());
+    }
+
+    private Date extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration);
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -51,20 +73,12 @@ public class JwtUtil {
         return claimsResolver.apply(claims);
     }
 
-    public String extractEmail(String token) {
-        return extractClaim(token, Claims::getSubject);
-    }
-
-    public Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
-    }
-
-    public Boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
-    }
-
-    public Boolean validateToken(String token, UserDetails userDetails) {
-        final String email = extractEmail(token);
-        return (email.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    private Claims extractAllClaims(String token) {
+        RSAPublicKey publicKey = keyPairProvider.getPublicKey();
+        return Jwts.parser()
+                .verifyWith(publicKey)              // асимметричная проверка
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }

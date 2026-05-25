@@ -5,6 +5,7 @@ import com.peredereevin.authservice.io.AuthResponse;
 import com.peredereevin.authservice.io.ResetPasswordRequest;
 import com.peredereevin.authservice.service.AppUserDetailsService;
 import com.peredereevin.authservice.service.ProfileService;
+import com.peredereevin.authservice.service.RefreshTokenService;
 import com.peredereevin.authservice.util.JwtUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,21 +34,37 @@ public class AuthController {
     private final AppUserDetailsService appUserDetailsService;
     private final JwtUtil jwtUtil;
     private final ProfileService profileService;
+    private final RefreshTokenService refreshTokenService;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest request) {
         try {
             authenticate(request.getEmail(), request.getPassword());
             final UserDetails userDetails = appUserDetailsService.loadUserByUsername(request.getEmail());
-            final String jwtToken = jwtUtil.generateToken(userDetails);
-            ResponseCookie cookie = ResponseCookie.from("jwt", jwtToken)
+            final String email = userDetails.getUsername();
+
+            // Access token
+            final String accessToken = jwtUtil.generateToken(email);
+            // Refresh token (сохраняется в БД)
+            final String refreshToken = refreshTokenService.createRefreshToken(email);
+
+            // Устанавливаем access token в httpOnly куку
+            ResponseCookie cookie = ResponseCookie.from("jwt", accessToken)
                     .httpOnly(true)
                     .path("/")
-                    .maxAge(Duration.ofDays(1))
+                    .maxAge(Duration.ofDays(1))  // или срок жизни access?
                     .sameSite("Strict")
                     .build();
-            return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString())
-                    .body(new AuthResponse(request.getEmail(), jwtToken));
+
+            AuthResponse responseBody = AuthResponse.builder()
+                    .email(email)
+                    .accessToken(accessToken)
+                    .refreshToken(refreshToken)
+                    .build();
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                    .body(responseBody);
         } catch (BadCredentialsException exception) {
             Map<String, Object> error = new HashMap<>();
             error.put("error", true);
@@ -65,6 +82,48 @@ public class AuthController {
             error.put("message", "Ошибка аутентификации!");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
         }
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshAccessToken(@RequestBody Map<String, String> request) {
+        String refreshToken = request.get("refreshToken");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "refreshToken обязателен"));
+        }
+
+        return refreshTokenService.findByToken(refreshToken)
+                .filter(refreshTokenService::isValid)
+                .map(token -> {
+                    String email = token.getEmail();
+                    String newAccessToken = jwtUtil.generateToken(email);
+                    ResponseCookie cookie = ResponseCookie.from("jwt", newAccessToken)
+                            .httpOnly(true)
+                            .path("/")
+                            .maxAge(Duration.ofDays(1))
+                            .sameSite("Strict")
+                            .build();
+                    return ResponseEntity.ok()
+                            .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                            .body(Map.of("accessToken", newAccessToken));
+                })
+                .orElse(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Невалидный или истекший refresh-токен")));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@CurrentSecurityContext(expression = "authentication?.name") String email) {
+        if (email != null) {
+            refreshTokenService.deleteByEmail(email);
+        }
+        // Удаляем куку
+        ResponseCookie deleteCookie = ResponseCookie.from("jwt", "")
+                .httpOnly(true)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Strict")
+                .build();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, deleteCookie.toString())
+                .body(Map.of("message", "Вы вышли из системы"));
     }
 
     private void authenticate(String email, String password) {
