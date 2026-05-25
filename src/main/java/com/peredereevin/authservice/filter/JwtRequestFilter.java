@@ -26,7 +26,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
 
     private static final List<String> PUBLIC_URLS = List.of(
-            "/login", "/register", "/send-reset-otp", "/reset-password", "/logout", "/refresh", "/swagger-ui/index.html"
+            "/login", "/register", "/send-reset-otp", "/reset", "/logout",
+            "/refresh", "/.well-known/jwks.json", "/introspect",
+            "/swagger-ui/index.html"
     );
 
     @Override

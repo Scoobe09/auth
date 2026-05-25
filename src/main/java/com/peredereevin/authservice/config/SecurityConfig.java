@@ -34,16 +34,27 @@ public class SecurityConfig {
     private final JwtRequestFilter jwtRequestFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
-        http.cors(Customizer.withDefaults())
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                // Включаем CORS с ЯВНОЙ конфигурацией (рекомендовано для SSO)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // Или, если хотите оставить как было: .cors(Customizer.withDefaults())
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/logout", "/register", "/refresh", "/send-reset-otp", "/reset", "/verify-otp", "/error", "/openapi.yaml")
-                        .permitAll().anyRequest().authenticated()
-                ).sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                        .requestMatchers(
+                                "/login", "/logout", "/register", "/refresh",
+                                "/send-reset-otp", "/reset", "/verify-otp",
+                                "/error", "/openapi.yaml",
+                                "/.well-known/jwks.json", "/introspect"  // 👈 новые SSO‑эндпоинты
+                        ).permitAll()
+                        .requestMatchers("/userinfo").authenticated()  // требует авторизации
+                        .anyRequest().authenticated()
+                )
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .logout(AbstractHttpConfigurer::disable)
                 .addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(customAuthenticationEntryPoint));
+
         return http.build();
     }
 
