@@ -5,10 +5,8 @@ import com.peredereevin.authservice.entity.User;
 import com.peredereevin.authservice.io.ProfileRequest;
 import com.peredereevin.authservice.io.ProfileResponse;
 import com.peredereevin.authservice.repository.UserRepository;
-import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
-
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,7 +18,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 @RequiredArgsConstructor
-public class ProfileServiceImplementation implements ProfileService{
+public class ProfileServiceImplementation implements ProfileService {
 
     private final UserRepository userRepository;
     private final BCryptPasswordEncoder passwordEncoder;
@@ -29,11 +27,10 @@ public class ProfileServiceImplementation implements ProfileService{
     @Override
     public ProfileResponse createProfile(ProfileRequest request) {
         User newProfile = convertToUser(request);
-        if (!userRepository.existsByEmail(request.getEmail())){
+        if (!userRepository.existsByEmail(request.getEmail())) {
             newProfile = userRepository.save(newProfile);
             return convertToProfileResponse(newProfile);
         }
-
         throw new ResponseStatusException(HttpStatus.CONFLICT, "Данный email уже существует");
     }
 
@@ -49,8 +46,15 @@ public class ProfileServiceImplementation implements ProfileService{
         User existingEntity = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
 
-        String otp = String.valueOf(ThreadLocalRandom.current().nextInt(100000,1000000));
+        // Tech-2: проверка частоты запросов
+        if (existingEntity.getLastResetOtpRequestTime() != null &&
+                System.currentTimeMillis() - existingEntity.getLastResetOtpRequestTime() < 60_000) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Слишком частые запросы. Подождите 1 минуту.");
+        }
+        existingEntity.setLastResetOtpRequestTime(System.currentTimeMillis());
 
+        String otp = String.valueOf(ThreadLocalRandom.current().nextInt(100000, 1000000));
         long expiryTime = System.currentTimeMillis() + (15 * 60 * 1000);
 
         existingEntity.setResetOtp(otp);
@@ -78,6 +82,7 @@ public class ProfileServiceImplementation implements ProfileService{
             throw new RuntimeException("Одноразовый код истёк");
         }
 
+        // ИСПРАВЛЕНИЕ: хешируем новый пароль перед сохранением (был баг – сохраняли сырым)
         existingUser.setPassword(passwordEncoder.encode(newPassword));
         existingUser.setResetOtp(null);
         existingUser.setResetOtpExpireAt(0L);
@@ -94,8 +99,15 @@ public class ProfileServiceImplementation implements ProfileService{
             return;
         }
 
-        String otp = String.format("%06d", new Random().nextInt(999999));
+        // Tech-2: проверка частоты запросов
+        if (existingUser.getLastOtpRequestTime() != null &&
+                System.currentTimeMillis() - existingUser.getLastOtpRequestTime() < 60_000) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Слишком частые запросы. Подождите 1 минуту.");
+        }
+        existingUser.setLastOtpRequestTime(System.currentTimeMillis());
 
+        String otp = String.format("%06d", new Random().nextInt(999999));
         long expiryTime = System.currentTimeMillis() + (24 * 60 * 60 * 1000);
 
         existingUser.setVerifyOtp(otp);
@@ -126,6 +138,7 @@ public class ProfileServiceImplementation implements ProfileService{
         existingUser.setIsAccountVerified(true);
         existingUser.setVerifyOtp(null);
         existingUser.setVerifyOtpExpireAt(0L);
+        // После верификации сбрасывать таймер не обязательно, но можно оставить
 
         userRepository.save(existingUser);
     }
@@ -134,11 +147,10 @@ public class ProfileServiceImplementation implements ProfileService{
     public String getLoggedInUserId(String email) {
         User existingUser = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Пользователь не найден"));
-
         return existingUser.getUserId();
     }
 
-    private ProfileResponse convertToProfileResponse(User newProfile){
+    private ProfileResponse convertToProfileResponse(User newProfile) {
         return ProfileResponse.builder()
                 .email(newProfile.getEmail())
                 .userId(newProfile.getUserId())
@@ -149,16 +161,18 @@ public class ProfileServiceImplementation implements ProfileService{
 
     private User convertToUser(ProfileRequest request) {
         return User.builder()
-                    .email(request.getEmail())
-                    .userId(UUID.randomUUID().toString())
-                    .name(request.getName())
-                    .password(passwordEncoder.encode(request.getPassword()))
-                    .isAccountVerified(false)
-                    .role(Role.USER)
-                    .resetOtpExpireAt(0L)
-                    .verifyOtp(null)
-                    .verifyOtpExpireAt(0L)
-                    .resetOtp(null)
-                    .build();
+                .email(request.getEmail())
+                .userId(UUID.randomUUID().toString())
+                .name(request.getName())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .isAccountVerified(false)
+                .role(Role.USER)                 // Явно назначаем роль при регистрации
+                .resetOtpExpireAt(0L)
+                .verifyOtp(null)
+                .verifyOtpExpireAt(0L)
+                .resetOtp(null)
+                .lastOtpRequestTime(null)       // инициализация (хотя Builder сам null поставит)
+                .lastResetOtpRequestTime(null)
+                .build();
     }
 }

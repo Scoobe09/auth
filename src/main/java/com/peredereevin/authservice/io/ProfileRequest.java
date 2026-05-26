@@ -17,6 +17,10 @@ public class ProfileRequest {
     @Email(message = "Введите валидный адрес электронной почты")
     @NotNull(message = "Поле email не должно быть пустым")
     private String email;
-    @Size(min = 6, message = "Пароль должен содержать минимум 6 символов!")
+    // поле password
+    @Pattern(
+            regexp = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=!])(?=\\S+$).{8,}$",
+            message = "Пароль должен быть не менее 8 символов, содержать цифру, строчную и заглавную букву, а также спецсимвол (@#$%^&+=!)"
+    )
     private String password;
 }
